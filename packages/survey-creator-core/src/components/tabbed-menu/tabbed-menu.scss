@@ -1,0 +1,9 @@
+@import "../../variables.scss";
+
+.svc-tabbed-menu {
+  display: flex;
+  white-space: nowrap;
+  overflow: hidden;
+  align-items: center;
+  max-width: 50%;
+}

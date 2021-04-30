@@ -1,0 +1,59 @@
+.spg-panel__title {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  padding: calcSize(2);
+  border: none;
+  outline: none;
+  color: $foreground-light;
+  cursor: pointer;
+  text-align: left;
+  background: $background;
+  box-shadow: inset 0px -1px 0px $border;
+  font-family: $font-family;
+  font-size: calcSize(2);
+  font-weight: 400;
+  margin: 0;
+}
+
+//todo: implement state in survey-library
+.spg-panel__title:disabled,
+.spg-panel__title:disabled:hover {
+  background-color: $background;
+  color: $foreground-disabled;
+  cursor: default;
+}
+
+.spg-panel__title--expandable:hover {
+  background-color: $background-dim;
+  color: $foreground-light;
+  font-weight: 400;
+}
+
+//todo: implement state in survey-library
+.spg-panel__title--expanded,
+.spg-panel__title--expanded:hover {
+  color: $foreground;
+  font-weight: 600;
+  background-color: $background;
+}
+
+.spg-panel__content {
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 0 calcSize(2) calcSize(5);
+  box-sizing: border-box;
+  background: $background-dim;
+  box-shadow: inset 0px -1px 0px #d6d6d6;
+}
+
+.spg-panel__content {
+  .spg-row {
+    width: 100%;
+    margin-top: calcSize(2);
+  }
+}

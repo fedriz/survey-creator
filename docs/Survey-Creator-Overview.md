@@ -25,7 +25,7 @@ If you want to get the most from our Survey Creator, then we hope that the follo
 
 ## Supported Platforms and Examples
 
-Unlike SurveyJS Library, Survey Creator uses only knockoutjs. The reason we have chosen this framework is simple. It has a tiny size, comparing with other popular modern frameworks, and it works perfectly with angular2+, reactjs and others.
+Unlike SurveyJS Library, Survey Creator uses only knockoutjs. The reason we have chosen this framework is simple. It has a tiny size, comparing with other popular modern frameworks, and it works perfectly with Angular, reactjs and others.
 
 We have created several Quick Start GitHub repositories for different client platforms, to give you an easy start.
 
@@ -81,7 +81,7 @@ There are several options that you may set to change the Survey Creator behavior
 |_generateValidJSON: false,_| The default value of this options is true. By default, the valid JSON is generated. You may want to use non-standard, but more readable format, [JSON5](https://json5.org/).|
 |_showJSONEditorTab: false,_|Set this option to false to hide the JSON Tab.|
 |_showTestSurveyTab: false,_|Set this option to false to hide the Survey Test Tab.|
-|_showEmbededSurveyTab: true,_|Set this option to true to show the Survey Embedded Tab. This tab is hidden by default. It shows how to integrate the survey into another web page.|
+|_showEmbeddedSurveyTab: true,_|Set this option to true to show the Survey Embedded Tab. This tab is hidden by default. It shows how to integrate the survey into another web page.|
 |_showTranslationTab: true,_|Set this option to true to show the Translation Tab. This tab is hidden by default. It allows to edit all localizable strings for several languages on one page. It allows to import/export into from csv file.|
 |_showLogicTab: true,_|Set this option to true to show the Logic Tab. This tab is hidden by default. It allows to view and edit the survey logic (expressions) in one place.|
 |_showElementEditorAsPropertyGrid: true_|Set this property to false to show property grid in old style, without categories, and allow to show Element Editor as modal window.|
@@ -164,13 +164,13 @@ The strings localization is supported by the community. Survey Creator strings a
 To change the current "en" locale to another one, you will have to write one line of code:
 ```javascript
 //Make french locale active
-SurveyCreator.localization.currentLocale = "fr";
+SurveyCreator.editorLocalization.currentLocale = "fr";
 ```
 If you want to change a text of any Survey Creator element, then you may use the following code:
 ```javascript
-var curLocale = SurveyCreator.localization.currentLocale;
+var curLocale = SurveyCreator.editorLocalization.currentLocale;
 // get the current locale strings object
-var curStrings = SurveyCreator.localization.getLocale("");
+var curStrings = SurveyCreator.editorLocalization.getLocale("");
 //change the text for visible property in Property Grid
 curStrings.p.visible = "Is visible";
 //change the text for visible property in Modal Editor
@@ -468,26 +468,26 @@ Please review and play with the [Survey Toolbox customization](https://surveyjs.
 
 ## Remove properties from SurveyJS Elements or hide them
 
-The most popular task is to remove or hide existing properties from the Survey Creator.
+The most popular task is to remove or hide existing properties in the Survey Creator.
 
-There is a difference between removing and hiding. If you remove the property, then SurveyJS will not be able to restore it from JSON and save it back to JSON. SurveyJS will not have any information about it. You may still do it, if you know that you do not need this property.
+There is a difference between removing and hiding. If you remove a property, then SurveyJS will not be able to restore it from JSON and save it back to JSON. SurveyJS will not have any information about the removed property. So, to remove properties, make sure that you do not need these properties anymore.
 
-Here is the example of removing the description and choicesUrl properties
+Here is an example of removing the [title](https://surveyjs.io/Documentation/Library?id=Question#title) and [choicesByUrl](https://surveyjs.io/Documentation/Library?id=QuestionSelectBase#choicesByUrl) properties.
 ```javascript
 //remove a property from the question class and as result from all questions
-Survey.Serializer.removeProperty("question", "description");
+Survey.Serializer.removeProperty("question", "title");
 //remove choicesByUrl from checkbox, dropdown and radiogroup questions
-Survey.Serializer.removeProperty("selectbase", "choicesUrl");
+Survey.Serializer.removeProperty("selectbase", "choicesByUrl");
 ```
 
-You may make these properties invisible in Survey Creator and still be able to load/save them in JSON by setting their visible property to false
+You can make these properties invisible in Survey Creator and still be able to load/save them in JSON by setting their [visible](https://surveyjs.io/Documentation/Library?id=Question#visible) property to false.
 ```javascript
 //make a property, from the question class and as result from all questions, invisible
-Survey.Serializer.findProperty("question", "description").visible = false;
+Survey.Serializer.findProperty("question", "title").visible = false;
 //make choicesByUrl property from checkbox, dropdown and radiogroup questions invisible
-Survey.Serializer.findProperty("selectbase", "choicesUrl").visible = false;
+Survey.Serializer.findProperty("selectbase", "choicesByUrl").visible = false;
 ```
-This work perfect, if you need to hide several properties. If the list of properties you want to make invisible is large, you may use survey **onShowingProperty** event.
+This work perfect, if you need to hide a few properties. If the list of properties you want to make invisible is large, you can use SurveyCreator's [onShowingProperty](https://surveyjs.io/Documentation/Survey-Creator?id=surveycreator#onShowingProperty) event.
 ```javascript
 surveyCreator.onShowingProperty.add(function (sender, options) {
     //check options.obj.getType() if needed. if (options.obj.getType() == "survey")
@@ -497,7 +497,7 @@ surveyCreator.onShowingProperty.add(function (sender, options) {
 });
 ```
 
-You may review the [Remove properties](https://surveyjs.io/Examples/Survey-Creator/?id=removeproperties) example.
+For more details, review the [Remove properties](https://surveyjs.io/Examples/Survey-Creator/?id=removeproperties) example.
 
 
 <div id="addproperties"></div>
@@ -885,7 +885,7 @@ End-users may change SurveyJS elements properties by using Element Editor Modal 
 
 <p align="center">
 
-![Radio group question Editor](https://github.com/surveyjs/survey-creator/blob/master/docs/images/builder-question-editor.png?raw=true)
+![Radio group question Editor](https://raw.githubusercontent.com/surveyjs/survey-creator/master/packages/survey-creator/docs/images/builder-question-editor.png)
 
 _The radiogroup question Editor_
 
@@ -1066,7 +1066,7 @@ SurveyCreator.removeAdorners();
 ```
 <p align="center">
 
-![Survey Creator Adorners](https://github.com/surveyjs/survey-creator/blob/master/docs/images/builder-adorners.png?raw=true)
+![Survey Creator Adorners](https://raw.githubusercontent.com/surveyjs/survey-creator/master/packages/survey-creator/docs/images/builder-adorners.png)
 
 _Dropdown question standard adorners_
 
@@ -1107,9 +1107,17 @@ surveyCreator.onElementAllowOperations.add(function (sender, options) {
         //disable changing type
         options.allowChangeType = false;
     }
+    
     //Show/hide "Edit" button for showing modal Question/Panel Editor Window
-    //options.allowEdit
+    //options.allowEdit = false;
+    
     //Enable/disable element drag&drop
-    //options.allowDragging
+    //options.allowDragging = false;
+    
+    //Enable/disable element changing isRequired property
+    //options.allowChangeRequired = false
+
+    //Enable/disable element changing titleLocation property to hidden/default
+    //options.allowShowHideTitle = false
 });
 ```

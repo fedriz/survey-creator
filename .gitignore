@@ -1,9 +1,7 @@
 .git/*
 .vs/*
 node_modules/*
-*.cmd
 .idea
-*.cmd
 package/*
 build/*
 tmp/*
@@ -32,7 +30,14 @@ docs/classes.json
 /bin/Debug/dnxcore50
 /obj/Debug
 /web.config
+/package-lock.json
 /doc_generator/*.json
 *.env
 svgbundle.html
+
+doc_generator/*.json
+node_modules
+build
+package
+tmp
 package-lock.json

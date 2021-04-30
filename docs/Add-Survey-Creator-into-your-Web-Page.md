@@ -10,20 +10,20 @@ Finally you may install our npm package:
 ## Step 1. Add links to [knockout](http://knockoutjs.com).
 
 ```javascript
-<script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.0/knockout-min.js"></script>
+<script src="https://unpkg.com/knockout@3.5.1/build/output/knockout-latest.js"></script>
 ```
 
 ## Step 2.  Add links to survey creator and survey library
 
 Add link to Survey Creator classes.
 ```javascript
-<link href="https://surveyjs.azureedge.net/@SurveyJSVersion/survey-creator.css" type="text/css" rel="stylesheet" />
+<link href="https://unpkg.com/survey-creator@SurveyJSVersion/survey-creator.css" type="text/css" rel="stylesheet" />
 ```
 
 Link to the SurveyJS Library knockout version and Survey Creator library.
 ```javascript
-<script src="https://surveyjs.azureedge.net/@SurveyJSVersion/survey.ko.min.js">
-<script src="https://surveyjs.azureedge.net/@SurveyJSVersion/survey-creator.min.js"></script>
+<script src="https://unpkg.com/survey-knockout@SurveyJSVersion/survey.ko.min.js">
+<script src="https://unpkg.com/survey-creator@SurveyJSVersion/survey-creator.min.js"></script>
 ```
 
 ## Step 3. Use boostrap or use our Themes
@@ -48,7 +48,7 @@ Inside your web page
 ```
 
 ```javascript
-var options = {showEmbededSurveyTab: true}; //see examples below
+var options = { showEmbeddedSurveyTab: true }; //see examples below
 var surveyCreator = new SurveyCreator.SurveyCreator("surveyCreatorContainer", options);
 //set function on save callback
 surveyCreator.saveSurveyFunc = saveMySurvey;
@@ -74,7 +74,7 @@ Load Survey from SurveyJS Service
 ```javascript
 var options = {
  // show the embedded survey tab. It is hidden by default
- showEmbededSurveyTab : true,
+ showEmbeddedSurveyTab : true,
  // hide the test survey tab. It is shown by default
  showTestSurveyTab : false,
  // hide the JSON text editor tab. It is shown by default

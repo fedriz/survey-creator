@@ -1,0 +1,437 @@
+import {
+  SurveyModel,
+  Base,
+  Serializer,
+  HtmlConditionItem,
+  Event,
+  ExpressionRunner,
+  Question,
+  HashTable,
+  Helpers,
+  property,
+  propertyArray,
+} from "survey-core";
+import { editorLocalization } from "../../editorLocalization";
+import { ConditionEditor } from "../../property-grid/condition-survey";
+import {
+  ISurveyCreatorOptions,
+  EmptySurveyCreatorOptions,
+  settings,
+} from "../../settings";
+import {
+  ISurveyLogicItemOwner,
+  SurveyLogicItem,
+  SurveyLogicAction,
+} from "./logic-items";
+import {
+  SurveyLogicTypes,
+  SurveyLogicType,
+  getLogicString,
+} from "./logic-types";
+
+export class SurveyLogic extends Base implements ISurveyLogicItemOwner {
+  private editableItemValue: SurveyLogicItem;
+  public static get visibleActions(): Array<string> {
+    return settings.visibleLogicActions;
+  }
+  public static set visibleActions(val: Array<string>) {
+    settings.visibleLogicActions = val;
+  }
+  public static get types() {
+    return SurveyLogicTypes.types;
+  }
+  public invisibleItems: Array<SurveyLogicItem> = [];
+  public onChangedCallback: (item: SurveyLogicItem, changeType: string) => void;
+
+  /**
+   * The event is called when logic item is saved.
+   * <br/> options.item is the saved logic item.
+   */
+  public onLogicItemSaved: Event<
+    (sender: SurveyLogic, options: any) => any,
+    any
+  > = new Event<(sender: SurveyLogic, options: any) => any, any>();
+  /**
+   * The event is called before logic item is saved. You can set options.error to non empty string to show error instead of saving the item.
+   * You can use options.item.actions to access actions and optionally set errorText to a particular action.
+   * <br/> options.item is the editing logic item. options.item.actions contains the old actions.
+   * <br/> options.actions is the array of  logic actions that user edit and create.
+   * <br/> usedNamesInExpression - the string list of all variables (questions, calculatedValues, and so on) that are used in expression
+   * <br/> error - the error string. It is empty by default. You have to set it to non-empty string to show the error on saving.
+   */
+  public onLogicItemValidation: Event<
+    (sender: SurveyLogic, options: any) => any,
+    any
+  > = new Event<(sender: SurveyLogic, options: any) => any, any>();
+  /**
+   * The event is called before logic item is being removed.
+   * <br/> options.allowRemove is the option you can set to false and prevent removing.
+   * <br/> options.item is the logic item to remove.
+   */
+  public onLogicItemRemoving: Event<
+    (sender: SurveyLogic, options: any) => any,
+    any
+  > = new Event<(sender: SurveyLogic, options: any) => any, any>();
+  /**
+   * The event is called when logic item is removed.
+   * <br/> options.item is the removed logic item.
+   */
+  public onLogicItemRemoved: Event<
+    (sender: SurveyLogic, options: any) => any,
+    any
+  > = new Event<(sender: SurveyLogic, options: any) => any, any>();
+
+  koAfterRender: any;
+
+  constructor(
+    public survey: SurveyModel,
+    public options: ISurveyCreatorOptions = null
+  ) {
+    super();
+    if (!this.options) this.options = new EmptySurveyCreatorOptions();
+    //TODO
+    //this.hideExpressionHeader = options && options["hideExpressionHeader"];
+    this.readOnly = this.optionsReadOnly;
+    this.update();
+    this.koAfterRender = function () {};
+  }
+  dispose() {
+    super.dispose();
+    this.onEndEditing();
+    this.survey = undefined;
+  }
+  @propertyArray() items: Array<SurveyLogicItem>;
+  @propertyArray() logicTypes: Array<SurveyLogicType>;
+  /**
+   * There are 3 modes: view, new, edit
+   */
+  @property() mode: string;
+  @property() errorText: string;
+  @property() readOnly: boolean;
+  @property() placeholderHtml: string;
+
+  public get editableItem(): SurveyLogicItem {
+    return this.editableItemValue;
+  }
+
+  protected onPropertyValueChanged(name: string, oldValue: any, newValue: any) {
+    super.onPropertyValueChanged(name, oldValue, newValue);
+    if (name === "mode") {
+      this.errorText = "";
+      if (newValue == "view" && (oldValue == "edit" || oldValue == "new")) {
+        this.onEndEditing();
+      }
+    }
+  }
+  public getLocString(name: string) {
+    return editorLocalization.getString(name);
+  }
+  public getTypeByName(name: string): SurveyLogicType {
+    for (var i = 0; i < this.logicTypes.length; i++) {
+      if (this.logicTypes[i].name == name) return this.logicTypes[i];
+    }
+    return null;
+  }
+  public update(
+    survey: SurveyModel = null,
+    options: ISurveyCreatorOptions = null
+  ) {
+    if (!!survey) {
+      this.survey = survey;
+    }
+    if (!!options) {
+      this.options = options;
+    }
+    this.logicTypes = this.createLogicTypes();
+    this.updateVisibleItems();
+    this.invisibleItems = this.buildItems(false);
+    this.readOnly = this.optionsReadOnly;
+    this.mode = "view";
+  }
+  private updateVisibleItems() {
+    this.items = this.buildItems(true);
+    this.editableItemValue = null;
+  }
+  public get optionsReadOnly() {
+    return !!this.options && this.options.readOnly;
+  }
+  public saveEditableItem(): boolean {
+    if (!this.editableItem || this.hasError()) return false;
+    !!this.options && this.options.startUndoRedoTransaction();
+    this.onEditableItemApply();
+    var isNew = this.items.indexOf(this.editableItem) < 0;
+    if (isNew) {
+      this.items.push(this.editableItem);
+    }
+    this.onItemChanged(this.editableItem, isNew ? "new" : "modify");
+    !!this.options && this.options.stopUndoRedoTransaction();
+    this.onLogicItemSaved.fire(this, { item: this.editableItem });
+    return true;
+  }
+  public saveEditableItemAndBack(): boolean {
+    var res = this.saveEditableItem();
+    if (res) {
+      this.mode = "view";
+    }
+    return res;
+  }
+  protected onEditableItemApply() {}
+  protected onItemChanged(item: SurveyLogicItem, changeType: string) {
+    if (!!this.onChangedCallback) {
+      this.onChangedCallback(item, changeType);
+    }
+  }
+  public renameQuestion(oldName: string, newName: string) {
+    this.renameQuestionCore(oldName, newName, this.items);
+    this.renameQuestionCore(oldName, newName, this.invisibleItems);
+  }
+  public removeQuestion(name: string) {
+    this.removeQuestionCore(name, this.items);
+    this.removeQuestionCore(name, this.invisibleItems);
+  }
+  public hasError(): boolean {
+    if (!this.editableItem) return true;
+    if (this.hasErrorInUI()) return true;
+    var exp = new ExpressionRunner(this.getExpressionText());
+    var options = {
+      item: this.editableItem,
+      error: "",
+      usedNamesInExpression: exp.getVariables(),
+      actions: this.getEditingActions(),
+    };
+    this.onLogicItemValidation.fire(this, options);
+    this.errorText = options.error;
+    return !!this.errorText;
+  }
+  protected hasErrorInUI(): boolean {
+    return false;
+  }
+  protected getExpressionText(): string {
+    return "";
+  }
+  protected getEditingActions(): Array<SurveyLogicAction> {
+    return [];
+  }
+  private renameQuestionCore(
+    oldName: string,
+    newName: string,
+    items: Array<SurveyLogicItem>
+  ) {
+    for (var i = 0; i < items.length; i++) {
+      items[i].renameQuestion(oldName, newName);
+    }
+  }
+  private removeQuestionCore(name: string, items: Array<SurveyLogicItem>) {
+    for (var i = 0; i < items.length; i++) {
+      items[i].removeQuestion(name);
+    }
+  }
+  public addNew() {
+    !!this.options && this.options.startUndoRedoTransaction();
+    var logicItem = new SurveyLogicItem(this);
+    this.editableItemValue = logicItem;
+    this.onStartEditing();
+    this.mode = "new";
+    !!this.options && this.options.stopUndoRedoTransaction();
+  }
+  public editItem(item: SurveyLogicItem) {
+    !!this.options && this.options.startUndoRedoTransaction();
+    this.editableItemValue = item;
+    this.onStartEditing();
+    this.mode = "edit";
+    !!this.options && this.options.stopUndoRedoTransaction();
+  }
+  protected onStartEditing() {}
+  protected onEndEditing() {
+    this.editableItemValue = null;
+  }
+  public removeItem(item: SurveyLogicItem) {
+    var eventOptions = { item: item, allowRemove: true };
+    this.onLogicItemRemoving.fire(this, eventOptions);
+    if (!eventOptions.allowRemove) return;
+
+    !!this.options && this.options.startUndoRedoTransaction();
+    item.apply("");
+    var index = this.items.indexOf(item);
+    if (index > -1) {
+      this.items.splice(index, 1);
+    }
+    this.onItemChanged(item, "delete");
+    !!this.options && this.options.stopUndoRedoTransaction();
+    this.onLogicItemRemoved.fire(this, { item: item });
+  }
+  public addAction(
+    lt: SurveyLogicType,
+    element: Base = null
+  ): SurveyLogicAction {
+    var action = this.createNewAction(lt, element);
+    this.editableItem.addNewAction(action);
+    return action;
+  }
+  public addNewAction(): SurveyLogicAction {
+    return this.addAction(null, null);
+  }
+  private createNewAction(
+    lt: SurveyLogicType,
+    element: Base
+  ): SurveyLogicAction {
+    var action = new SurveyLogicAction(lt, element, this.survey);
+    return action;
+  }
+  public getVisibleLogicTypes(): Array<SurveyLogicType> {
+    var res = [];
+    var logicTypes = this.logicTypes;
+    for (var i = 0; i < logicTypes.length; i++) {
+      if (logicTypes[i].visible) {
+        res.push(logicTypes[i]);
+      }
+    }
+    return res;
+  }
+  public removeAction(action: SurveyLogicAction) {
+    if (!this.editableItem) return;
+    this.editableItem.removeAction(action);
+    if (this.editableItem.actions.length == 0) {
+      this.addNewAction();
+    }
+  }
+  public getExpressionAsDisplayText(expression: string): string {
+    return SurveyLogicType.expressionToDisplayText(
+      this.survey,
+      this.options,
+      expression
+    );
+  }
+  protected buildItems(showInUI: boolean): Array<SurveyLogicItem> {
+    var res = [];
+    var hash = {};
+    var elements = this.getAllElements();
+    for (var i = 0; i < elements.length; i++) {
+      this.buildItemsByElement(elements[i], res, hash, showInUI);
+    }
+    return res;
+  }
+  protected getAllElements(): Array<Base> {
+    var res = [];
+    this.AddElements(this.survey.pages, res);
+    this.AddElements(this.survey.getAllQuestions(), res);
+    this.AddElements(this.survey.getAllPanels(), res);
+    this.AddElements(this.survey.triggers, res);
+    this.AddElements(this.survey.completedHtmlOnCondition, res);
+    this.AddElements(this.survey.calculatedValues, res);
+    this.AddElements(this.getMatrixColumns(), res);
+    this.AddElements(this.getValidators(), res);
+    this.AddElements(this.getItemValues(), res);
+    return res;
+  }
+  private getMatrixColumns(): Array<Base> {
+    var res = [];
+    var questions = this.survey.getAllQuestions();
+    for (var i = 0; i < questions.length; i++) {
+      var q = questions[i];
+      var columns = q["columns"];
+      if (!columns) continue;
+      var prop = Serializer.findProperty(q.getType(), "columns");
+      if (!prop || prop.className !== "matrixdropdowncolumn") continue;
+      this.AddElements(columns, res);
+    }
+    return res;
+  }
+  private getValidators(): Array<Base> {
+    var res = [];
+    var questions = this.survey.getAllQuestions();
+    for (var i = 0; i < questions.length; i++) {
+      this.AddElements((<Question>questions[i]).validators, res);
+    }
+    return res;
+  }
+  private getItemValues(): Array<Base> {
+    var res = [];
+    var questions = this.survey.getAllQuestions();
+    for (var i = 0; i < questions.length; i++) {
+      var q = questions[i];
+      var choices = q["choices"];
+      if (!choices) continue;
+      var prop = Serializer.findProperty(q.getType(), "choices");
+      if (!prop || prop.type !== "itemvalue[]") continue;
+      this.AddElements(choices, res);
+    }
+    return res;
+  }
+  private AddElements(src: Array<any>, dest: Array<any>) {
+    for (var i = 0; i < src.length; i++) {
+      dest.push(src[i]);
+    }
+  }
+  private buildItemsByElement(
+    element: Base,
+    dest: Array<SurveyLogicItem>,
+    hash: HashTable<SurveyLogicItem>,
+    showInUI: boolean
+  ) {
+    var types = this.getElementAllTypes(element);
+    for (var i = 0; i < this.logicTypes.length; i++) {
+      var lt = this.logicTypes[i];
+      if (lt.showInUI !== showInUI) continue;
+      var expression = element[lt.propertyName];
+      if (
+        types.indexOf(lt.baseClass) > -1 &&
+        !Helpers.isValueEmpty(expression)
+      ) {
+        var key = this.getExpressionHashKey(expression);
+        var item = hash[key];
+        if (!item) {
+          item = new SurveyLogicItem(this, expression);
+          hash[key] = item;
+          dest.push(item);
+        }
+        var action = this.createNewAction(lt, element);
+        item.addNewAction(action);
+      }
+    }
+  }
+  private getExpressionHashKey(expression: string): string {
+    return expression.replace(" ", "").toLowerCase();
+  }
+  private getElementAllTypes(element: Base) {
+    var types = [];
+    var type = element.getType();
+    types.push(type);
+    while (!!type && type != "base") {
+      var cl = Serializer.findClass(type);
+      if (!cl) break;
+      type = cl.parentName;
+      if (!!type) {
+        types.push(type);
+      }
+    }
+    return types;
+  }
+  protected createLogicTypes(): Array<SurveyLogicType> {
+    var res = [];
+    var visActions = SurveyLogic.visibleActions;
+    for (var i = 0; i < SurveyLogic.types.length; i++) {
+      if (
+        visActions.length > 0 &&
+        visActions.indexOf(SurveyLogic.types[i].name) < 0
+      )
+        continue;
+      res.push(
+        new SurveyLogicType(SurveyLogic.types[i], this.survey, this.options)
+      );
+    }
+    return res;
+  }
+  /*
+  public get hideExpressionHeader(): boolean {
+    return (
+      !!this.expressionEditor && this.expressionEditor.koShowExpressionHeader()
+    );
+  }
+  public set hideExpressionHeader(val: boolean) {
+    if (!!this.expressionEditor) {
+      this.expressionEditor.koShowExpressionHeader(val);
+    }
+  }
+  */
+}

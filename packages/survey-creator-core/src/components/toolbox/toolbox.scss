@@ -1,0 +1,26 @@
+@import "../../variables.scss";
+
+svc-toolbox {
+  display: flex;
+  flex-direction: column;
+}
+
+.svc-toolbox {
+  height: 100%;
+  width: 84px;
+  padding: calcSize(2);
+  box-sizing: border-box;
+}
+
+.svc-toolbox__category {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.svc-toolbox__category-separator {
+  height: calcSize(0.1);
+  width: calcSize(6);
+  background-color: $border;
+  margin: calcSize(1) 0;
+}
